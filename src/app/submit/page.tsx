@@ -34,6 +34,7 @@ export default function Submit() {
   const { toast } = useToast();
   const [description, setDescription] = useState("");
   const [company, setCompany] = useState("");
+  const [category, setCategory] = useState("");
   const [lastSubmittedDescription, setLastSubmittedDescription] = useState("");
   const [lastSubmittedCompany, setLastSubmittedCompany] = useState("");
   const [image, setImage] = useState<File | null>(null);
@@ -46,6 +47,14 @@ export default function Submit() {
     "Blinkit",
     "BigBasket",
     "Dunzo",
+  ];
+
+  const categories = [
+    "Food",
+    "Groceries",
+    "Veggies",
+    "Electronics",
+    "Other",
   ];
 
   const [geminiResult, setGeminiResult] = useState<GeminiResult | string | null>(null);
@@ -73,11 +82,54 @@ export default function Submit() {
       setLoading(false);
       return;
     }
+    // Category-specific prompts
+    let prompt = '';
+    switch (category) {
+      case "Food":
+        prompt = `You are an expert food safety and quality analyst. Analyze the following complaint about a food item and provide:
+- Severity of the issue
+- Refund estimate
+- Health/safety risks
+- Possible resolutions
+- Any relevant food safety standards
+\n\nComplaint: ${description}\nCompany: ${company}`;
+        break;
+      case "Groceries":
+        prompt = `You are an expert groceries quality analyst. Analyze the following complaint about a grocery item and provide:
+- Severity of the issue
+- Refund estimate
+- Freshness/quality issues
+- Expiry date, manufacturing date, and best before date details (if mentioned)
+- Possible resolutions
+- Any relevant food safety or labeling standards
+\n\nComplaint: ${description}\nCompany: ${company}`;
+        break;
+      case "Veggies":
+        prompt = `You are an expert in vegetable and produce quality. Analyze the following complaint about veggies and provide:
+- Severity of the issue
+- Refund estimate
+- Freshness/quality issues
+- Possible resolutions
+\n\nComplaint: ${description}\nCompany: ${company}`;
+        break;
+      case "Electronics":
+        prompt = `You are an expert electronics product analyst. Analyze the following complaint about an electronic item and provide:
+- Severity of the issue
+- Refund estimate
+- Warranty/defect issues
+- Physical alteration or tampering inspection (look for any signs of physical damage, opened seals, or unauthorized repairs)
+- Product checks relevant to electronics (power, function, included accessories)
+- Possible resolutions
+\n\nComplaint: ${description}\nCompany: ${company}`;
+        break;
+      default:
+        prompt = `You are an expert consumer complaint analyst. Read the following complaint and provide a detailed analysis, including severity, possible resolution, and refund estimate.\n\nComplaint: ${description}\nCompany: ${company}`;
+    }
     try {
       let res;
       if (image) {
         const formData = new FormData();
-        formData.append("prompt", `You are an expert consumer complaint analyst. Read the following complaint and provide a detailed analysis, including severity, possible resolution, and refund estimate.\n\nComplaint: ${description}\nCompany: ${company}`);
+        formData.append("prompt", prompt);
         formData.append("file", image);
         res = await fetch("/api/gemini", {
           method: "POST",
@@ -87,7 +139,7 @@ export default function Submit() {
         res = await fetch("/api/gemini", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: `You are an expert consumer complaint analyst. Read the following complaint and provide a detailed analysis, including severity, possible resolution, and refund estimate.\n\nComplaint: ${description}\nCompany: ${company}` }),
+          body: JSON.stringify({ prompt }),
         });
       }
       const data = await res.json();
@@ -109,9 +161,26 @@ export default function Submit() {
     }
   };
 
+  const [walletConnected, setWalletConnected] = useState(false);
+  const walletAddress = "0x317987A491E3042Da60F06F7eCC7551e820C9F28";
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FED7AA] to-[#FEF7CD] py-12">
       <div className="container mx-auto px-4">
+        <div className="flex justify-end max-w-2xl mx-auto mb-4">
+          {!walletConnected ? (
+            <button
+              className="px-5 py-2 bg-[#8B5CF6] text-white font-bold rounded-lg hover:bg-[#7C3AED] shadow-md"
+              onClick={() => setWalletConnected(true)}
+            >
+              Connect Wallet
+            </button>
+          ) : (
+            <div className="px-5 py-2 bg-[#F3F4F6] text-[#8B5CF6] font-mono rounded-lg border border-[#8B5CF6] shadow-md">
+              {walletAddress}
+            </div>
+          )}
+        </div>
         <div className="max-w-2xl mx-auto">
           <div className="bg-white border-4 border-[#F97316] rounded-xl p-8 shadow-[8px_8px_0px_0px_#F97316]">
             <div className="flex items-center space-x-3 mb-8">
@@ -120,6 +189,26 @@ export default function Submit() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-[#F97316] font-bold mb-2">
+                  Select Category
+                </label>
+                <div className="relative">
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full pr-4 py-3 border-2 border-[#F97316] rounded-lg focus:ring-2 focus:ring-[#F97316] focus:border-transparent bg-white text-gray-600 mb-2"
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {/* End Category Select */}
+
               <div>
                 <label className="block text-[#F97316] font-bold mb-2">
                   Upload Image
